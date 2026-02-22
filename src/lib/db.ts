@@ -16,16 +16,16 @@ function getDb(): Database.Database {
 export function getAllProperties() {
   return getDb().prepare(`
     SELECT p.*,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0
         THEN ROUND((p.market_value - p.purchase_price) * 100.0 / p.purchase_price, 2)
         ELSE NULL END as total_return_pct,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0 AND p.purchase_date IS NOT NULL
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0 AND p.purchase_date IS NOT NULL
         THEN ROUND((julianday('now') - julianday(p.purchase_date)) / 365.25, 1)
         ELSE NULL END as years_held,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0
         THEN ROUND(p.market_value - p.purchase_price, 0)
         ELSE NULL END as total_gain_dollars,
-      CASE WHEN p.purchase_price > 0 AND p.living_sqft > 0
+      CASE WHEN p.purchase_price > 1000 AND p.living_sqft > 0
         THEN ROUND(p.purchase_price / p.living_sqft, 2)
         ELSE NULL END as price_per_sqft_purchase,
       CASE WHEN p.market_value > 0 AND p.living_sqft > 0
@@ -42,16 +42,16 @@ export function getAllProperties() {
 export function getPropertyByPcn(pcn: string) {
   return getDb().prepare(`
     SELECT p.*,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0
         THEN ROUND((p.market_value - p.purchase_price) * 100.0 / p.purchase_price, 2)
         ELSE NULL END as total_return_pct,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0 AND p.purchase_date IS NOT NULL
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0 AND p.purchase_date IS NOT NULL
         THEN ROUND((julianday('now') - julianday(p.purchase_date)) / 365.25, 1)
         ELSE NULL END as years_held,
-      CASE WHEN p.purchase_price > 0 AND p.market_value > 0
+      CASE WHEN p.purchase_price > 1000 AND p.market_value > 0
         THEN ROUND(p.market_value - p.purchase_price, 0)
         ELSE NULL END as total_gain_dollars,
-      CASE WHEN p.purchase_price > 0 AND p.living_sqft > 0
+      CASE WHEN p.purchase_price > 1000 AND p.living_sqft > 0
         THEN ROUND(p.purchase_price / p.living_sqft, 2)
         ELSE NULL END as price_per_sqft_purchase,
       CASE WHEN p.market_value > 0 AND p.living_sqft > 0
@@ -88,7 +88,7 @@ export function getCommunityStats() {
       COUNT(*) as total_properties,
       ROUND(SUM(market_value), 0) as total_community_value,
       ROUND(AVG(market_value), 0) as avg_market_value,
-      ROUND(AVG(CASE WHEN purchase_price > 0 AND market_value > 0
+      ROUND(AVG(CASE WHEN purchase_price > 1000 AND market_value > 0
         THEN (market_value - purchase_price) * 100.0 / purchase_price
         ELSE NULL END), 2) as avg_return_pct,
       ROUND(AVG(CASE WHEN market_value > 0 AND living_sqft > 0
@@ -106,7 +106,7 @@ export function getPropertiesByBedrooms() {
       bedrooms,
       COUNT(*) as count,
       ROUND(AVG(market_value), 0) as avg_value,
-      ROUND(AVG(CASE WHEN purchase_price > 0
+      ROUND(AVG(CASE WHEN purchase_price > 1000
         THEN (market_value - purchase_price) * 100.0 / purchase_price
         ELSE NULL END), 2) as avg_return_pct,
       ROUND(AVG(CASE WHEN living_sqft > 0
@@ -128,7 +128,7 @@ export function getFlips() {
     JOIN sale_history sh2 ON sh1.pcn = sh2.pcn
       AND sh2.sale_date > sh1.sale_date
       AND julianday(sh2.sale_date) - julianday(sh1.sale_date) <= 1095
-      AND sh1.sale_price > 0
+      AND sh1.sale_price > 1000
       AND sh2.sale_price > sh1.sale_price * 1.3
     ORDER BY flip_return_pct DESC
   `).all();
