@@ -12,24 +12,41 @@ import LeaderboardTable, {
   type LeaderboardRow,
 } from "@/components/LeaderboardTable/LeaderboardTable";
 
+interface FlipRecord {
+  pcn: string;
+  buy_price: number;
+  buy_date: string;
+  sell_price: number;
+  sell_date: string;
+  flip_return_pct: number;
+}
+
 export default function LeaderboardsPage() {
   const [properties, setProperties] = useState<PropertyWithMetrics[]>([]);
+  const [flips, setFlips] = useState<FlipRecord[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activePreset, setActivePreset] = useState<PresetKey>("best_investment");
   const [sortField, setSortField] = useState("annualized_return_pct");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
 
-  // Fetch properties on mount
+  // Fetch properties and flips on mount
   useEffect(() => {
     async function fetchData() {
       try {
-        const res = await fetch("/api/properties");
-        if (!res.ok) throw new Error(`API error: ${res.status}`);
-        const data = await res.json();
-        setProperties(data as PropertyWithMetrics[]);
+        const [propRes, flipsRes] = await Promise.all([
+          fetch("/api/properties"),
+          fetch("/api/flips"),
+        ]);
+        if (!propRes.ok) throw new Error(`API error: ${propRes.status}`);
+        const [propData, flipsData] = await Promise.all([
+          propRes.json(),
+          flipsRes.json(),
+        ]);
+        setProperties(propData as PropertyWithMetrics[]);
+        setFlips(flipsData as FlipRecord[]);
       } catch (err) {
-        console.error("Failed to fetch properties:", err);
+        console.error("Failed to fetch data:", err);
         setError(err instanceof Error ? err.message : "Failed to load data");
       } finally {
         setIsLoading(false);
@@ -37,6 +54,20 @@ export default function LeaderboardsPage() {
     }
     fetchData();
   }, []);
+
+  // Build flip lookup: pcn -> best flip_return_pct
+  const flipMap = useMemo(() => {
+    const map = new globalThis.Map<string, number>();
+    for (const flip of flips) {
+      const existing = map.get(flip.pcn);
+      if (existing === undefined || flip.flip_return_pct > existing) {
+        map.set(flip.pcn, flip.flip_return_pct);
+      }
+    }
+    return map;
+  }, [flips]);
+
+  const flipPcns = useMemo(() => new Set(flipMap.keys()), [flipMap]);
 
   // Build leaderboard rows with client-side calculations
   const rows: LeaderboardRow[] = useMemo(() => {
@@ -94,10 +125,20 @@ export default function LeaderboardsPage() {
         estimated_equity: equity,
         leverage_return: leverageReturn,
         purchase_date: p.purchase_date,
+        flip_return_pct: flipMap.get(p.pcn) ?? null,
+        isFlip: flipPcns.has(p.pcn),
         hasMetrics,
       };
     });
-  }, [properties]);
+  }, [properties, flipMap, flipPcns]);
+
+  // For "Best Flips" preset, filter to only flip properties
+  const displayRows = useMemo(() => {
+    if (activePreset === "best_flips") {
+      return rows.filter((r) => r.isFlip);
+    }
+    return rows;
+  }, [rows, activePreset]);
 
   // When a preset is selected, apply its sort
   function handlePresetChange(key: PresetKey) {
@@ -147,7 +188,8 @@ export default function LeaderboardsPage() {
     );
   }
 
-  const metricsCount = rows.filter((r) => r.hasMetrics).length;
+  const metricsCount = displayRows.filter((r) => r.hasMetrics).length;
+  const flipCount = flipPcns.size;
 
   return (
     <div className="min-h-[calc(100vh-4rem)] bg-slate-900 px-4 py-6">
@@ -156,9 +198,17 @@ export default function LeaderboardsPage() {
         <div className="mb-6">
           <h1 className="text-2xl font-bold text-white">Leaderboards</h1>
           <p className="mt-1 text-sm text-slate-400">
-            {metricsCount} properties ranked
-            {rows.length - metricsCount > 0 &&
-              ` (${rows.length - metricsCount} without valid purchase data)`}
+            {activePreset === "best_flips"
+              ? `${metricsCount} flip-flagged properties`
+              : `${metricsCount} properties ranked`}
+            {activePreset !== "best_flips" &&
+              rows.length - rows.filter((r) => r.hasMetrics).length > 0 &&
+              ` (${rows.length - rows.filter((r) => r.hasMetrics).length} without valid purchase data)`}
+            {flipCount > 0 && activePreset !== "best_flips" && (
+              <span className="ml-2 text-amber-400">
+                {flipCount} flips detected
+              </span>
+            )}
           </p>
         </div>
 
@@ -172,7 +222,7 @@ export default function LeaderboardsPage() {
 
         {/* Table */}
         <LeaderboardTable
-          rows={rows}
+          rows={displayRows}
           sortField={sortField}
           sortDir={sortDir}
           onSortChange={handleSortChange}

@@ -49,23 +49,35 @@ export default function MapView() {
   const [selectedData, setSelectedData] = useState<SelectedPropertyData | null>(null);
   const [isPanelLoading, setIsPanelLoading] = useState(false);
 
+  // Flip detection state
+  const [flipPcns, setFlipPcns] = useState<Set<string>>(new Set());
+
   // Fetch all data on mount
   useEffect(() => {
     async function fetchData() {
       try {
-        const [propRes, geoRes, statsRes] = await Promise.all([
+        const [propRes, geoRes, statsRes, flipsRes] = await Promise.all([
           fetch("/api/properties"),
           fetch("/api/geojson"),
           fetch("/api/stats"),
+          fetch("/api/flips"),
         ]);
-        const [propData, geoData, statsData] = await Promise.all([
+        const [propData, geoData, statsData, flipsData] = await Promise.all([
           propRes.json(),
           geoRes.json(),
           statsRes.json(),
+          flipsRes.json(),
         ]);
         setProperties(propData as PropertyWithMetrics[]);
         setGeojson(geoData as FeatureCollection);
         setStats(statsData.stats as CommunityStats);
+
+        // Build flip PCN set
+        const pcns = new Set<string>();
+        for (const flip of flipsData as { pcn: string }[]) {
+          pcns.add(flip.pcn);
+        }
+        setFlipPcns(pcns);
       } catch (err) {
         console.error("Failed to fetch data:", err);
       } finally {
@@ -148,12 +160,13 @@ export default function MapView() {
           price_per_sqft_purchase: metrics?.price_per_sqft_purchase ?? null,
           estimated_equity: metrics?.estimated_equity ?? null,
           years_held: metrics?.years_held ?? null,
+          is_flip: pcn ? (flipPcns.has(pcn) ? 1 : 0) : 0,
         },
       };
     });
 
     return { type: "FeatureCollection" as const, features };
-  }, [geojson, metricMap]);
+  }, [geojson, metricMap, flipPcns]);
 
   // Compute domain for the currently selected metric
   const domain = useMemo(
@@ -271,6 +284,23 @@ export default function MapView() {
     [selectedPcn]
   );
 
+  // Flip indicator outline layer - amber ring on flip properties
+  const flipOutlineLayer = useMemo(
+    (): LayerProps =>
+      ({
+        id: "parcels-flip-outline",
+        type: "line",
+        paint: {
+          "line-color": "#f59e0b",
+          "line-width": 2,
+          "line-opacity": 0.8,
+          "line-dasharray": [2, 2],
+        },
+        filter: ["==", ["get", "is_flip"], 1],
+      }) as LayerProps,
+    []
+  );
+
   // Handle mouse move on parcels
   const onMouseMove = useCallback(
     (e: MapMouseEvent) => {
@@ -379,6 +409,7 @@ export default function MapView() {
             <Layer {...outlineLayer} />
             <Layer {...highlightLayer} />
             <Layer {...selectedLayer} />
+            <Layer {...flipOutlineLayer} />
           </Source>
         )}
       </MapGL>
@@ -422,6 +453,12 @@ export default function MapView() {
           />
           <span className="text-[10px] text-slate-400">High</span>
         </div>
+        {flipPcns.size > 0 && (
+          <div className="mt-1.5 flex items-center gap-1.5">
+            <div className="h-2.5 w-4 rounded-sm border border-dashed border-amber-500" />
+            <span className="text-[10px] text-slate-400">Likely Flip</span>
+          </div>
+        )}
       </div>
 
       {/* Property detail panel */}
@@ -439,6 +476,7 @@ export default function MapView() {
           property={selectedData.property}
           saleHistory={selectedData.saleHistory}
           onClose={handleClosePanel}
+          isFlip={flipPcns.has(selectedPcn)}
         />
       )}
     </div>

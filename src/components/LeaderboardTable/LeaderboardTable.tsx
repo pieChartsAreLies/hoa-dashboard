@@ -16,6 +16,8 @@ export interface LeaderboardRow {
   leverage_return: number | null;
   purchase_date: string | null;
   price_per_sqft_purchase: number | null;
+  flip_return_pct?: number | null;
+  isFlip?: boolean;
   /** True if this property has valid metrics (purchase_price > 1000) */
   hasMetrics: boolean;
 }
@@ -116,6 +118,17 @@ const MEDAL_COLORS = [
   { bg: "border-l-2 border-l-[#CD7F32]", text: "text-[#CD7F32]" },
 ];
 
+function FlipBadgeSmall() {
+  return (
+    <span
+      className="ml-1.5 inline-flex items-center rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-amber-400"
+      title="Likely flip/renovation: resold within 3 years at 30%+ gain"
+    >
+      Flip
+    </span>
+  );
+}
+
 interface LeaderboardTableProps {
   rows: LeaderboardRow[];
   sortField: string;
@@ -161,6 +174,15 @@ export default function LeaderboardTable({
       withMetrics.sort((a, b) => {
         const aVal = a.price_per_sqft_purchase;
         const bVal = b.price_per_sqft_purchase;
+        if (aVal === null && bVal === null) return 0;
+        if (aVal === null) return 1;
+        if (bVal === null) return -1;
+        return sortDir === "asc" ? aVal - bVal : bVal - aVal;
+      });
+    } else if (sortField === "flip_return_pct") {
+      withMetrics.sort((a, b) => {
+        const aVal = a.flip_return_pct ?? null;
+        const bVal = b.flip_return_pct ?? null;
         if (aVal === null && bVal === null) return 0;
         if (aVal === null) return 1;
         if (bVal === null) return -1;
@@ -256,6 +278,20 @@ export default function LeaderboardTable({
                     );
                   }
 
+                  if (col.key === "address") {
+                    return (
+                      <td
+                        key={col.key}
+                        className="px-3 py-2.5 text-left font-medium text-slate-200"
+                      >
+                        <span className="inline-flex items-center">
+                          {row.address}
+                          {row.isFlip && <FlipBadgeSmall />}
+                        </span>
+                      </td>
+                    );
+                  }
+
                   const value = col.format(row);
                   const color =
                     !row.hasMetrics
@@ -269,9 +305,7 @@ export default function LeaderboardTable({
                       key={col.key}
                       className={`px-3 py-2.5 ${
                         col.align === "right" ? "text-right font-mono" : "text-left"
-                      } ${color} ${
-                        col.key === "address" ? "font-medium" : ""
-                      }`}
+                      } ${color}`}
                     >
                       {value}
                     </td>

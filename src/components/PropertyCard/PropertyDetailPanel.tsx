@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PropertyWithMetrics, SaleRecord } from "@/lib/types";
 import {
   formatCurrency,
@@ -9,11 +9,13 @@ import {
   monthsElapsed,
 } from "@/lib/metrics";
 import { calculateEquity, type EquityResult } from "@/lib/amortization";
+import SellScenarioPanel from "@/components/SellScenario/SellScenarioPanel";
 
 interface PropertyDetailPanelProps {
   property: PropertyWithMetrics;
   saleHistory: SaleRecord[];
   onClose: () => void;
+  isFlip?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -98,6 +100,29 @@ function MetricCell({
   );
 }
 
+function FlipBadge() {
+  return (
+    <span
+      className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-amber-400"
+      title="This property was resold within 3 years at 30%+ gain, indicating a likely flip or renovation"
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-3 w-3"
+        viewBox="0 0 20 20"
+        fill="currentColor"
+      >
+        <path
+          fillRule="evenodd"
+          d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z"
+          clipRule="evenodd"
+        />
+      </svg>
+      Likely Flip
+    </span>
+  );
+}
+
 /* ------------------------------------------------------------------ */
 /*  Main Panel                                                        */
 /* ------------------------------------------------------------------ */
@@ -106,8 +131,10 @@ export default function PropertyDetailPanel({
   property,
   saleHistory,
   onClose,
+  isFlip = false,
 }: PropertyDetailPanelProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  const [showSellScenario, setShowSellScenario] = useState(false);
 
   // Close on Escape key
   useEffect(() => {
@@ -137,9 +164,12 @@ export default function PropertyDetailPanel({
       {/* Header */}
       <div className="flex items-start justify-between border-b border-slate-700 px-5 py-4">
         <div className="min-w-0 flex-1 pr-3">
-          <h2 className="truncate text-lg font-bold text-white">
-            {property.address}
-          </h2>
+          <div className="flex items-center gap-2">
+            <h2 className="truncate text-lg font-bold text-white">
+              {property.address}
+            </h2>
+            {isFlip && <FlipBadge />}
+          </div>
           <p className="mt-0.5 truncate text-sm text-slate-400">
             {property.owner_name}
           </p>
@@ -305,6 +335,49 @@ export default function PropertyDetailPanel({
             </div>
           </div>
         )}
+
+        {/* What If I Sold Today? */}
+        <div>
+          <button
+            onClick={() => setShowSellScenario(!showSellScenario)}
+            className="flex w-full items-center justify-center gap-2 rounded-lg border border-teal-500/30 bg-teal-500/10 px-4 py-2.5 text-sm font-semibold text-teal-400 transition-all hover:border-teal-500/50 hover:bg-teal-500/20"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className="h-4 w-4"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path d="M8.433 7.418c.155-.103.346-.196.567-.267v1.698a2.305 2.305 0 01-.567-.267C8.07 8.34 8 8.114 8 8c0-.114.07-.34.433-.582zM11 12.849v-1.698c.22.071.412.164.567.267.364.243.433.468.433.582 0 .114-.07.34-.433.582a2.305 2.305 0 01-.567.267z" />
+              <path
+                fillRule="evenodd"
+                d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-13a1 1 0 10-2 0v.092a4.535 4.535 0 00-1.676.662C6.602 6.234 6 7.009 6 8c0 .99.602 1.765 1.324 2.246.48.32 1.054.545 1.676.662v1.941c-.391-.127-.68-.317-.843-.504a1 1 0 10-1.51 1.31c.562.649 1.413 1.076 2.353 1.253V15a1 1 0 102 0v-.092a4.535 4.535 0 001.676-.662C13.398 13.766 14 12.991 14 12c0-.99-.602-1.765-1.324-2.246A4.535 4.535 0 0011 9.092V7.151c.391.127.68.317.843.504a1 1 0 101.511-1.31c-.563-.649-1.413-1.076-2.354-1.253V5z"
+                clipRule="evenodd"
+              />
+            </svg>
+            What If I Sold Today?
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              className={`h-4 w-4 transition-transform ${
+                showSellScenario ? "rotate-180" : ""
+              }`}
+              viewBox="0 0 20 20"
+              fill="currentColor"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+
+          {showSellScenario && (
+            <div className="mt-3">
+              <SellScenarioPanel property={property} />
+            </div>
+          )}
+        </div>
 
         {/* Property Details */}
         <div>

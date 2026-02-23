@@ -8,7 +8,8 @@ export type PresetKey =
   | "most_equity"
   | "best_leverage"
   | "og_residents"
-  | "newest_buyers";
+  | "newest_buyers"
+  | "best_flips";
 
 export interface PresetConfig {
   key: PresetKey;
@@ -26,6 +27,7 @@ export const PRESETS: PresetConfig[] = [
   { key: "best_leverage", label: "Best Leverage", sortField: "leverage_return", sortDir: "desc" },
   { key: "og_residents", label: "OG Residents", sortField: "purchase_date", sortDir: "asc" },
   { key: "newest_buyers", label: "Newest Buyers", sortField: "purchase_date", sortDir: "desc" },
+  { key: "best_flips", label: "Best Flips", sortField: "flip_return_pct", sortDir: "desc" },
 ];
 
 interface LeaderboardSelectorProps {
@@ -36,19 +38,24 @@ interface LeaderboardSelectorProps {
 export default function LeaderboardSelector({ selected, onChange }: LeaderboardSelectorProps) {
   return (
     <div className="flex flex-wrap items-center justify-center gap-1.5 rounded-xl border border-white/10 bg-slate-950/90 px-3 py-2 backdrop-blur-md">
-      {PRESETS.map((p) => (
-        <button
-          key={p.key}
-          onClick={() => onChange(p.key)}
-          className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-            selected === p.key
-              ? "bg-teal-500/20 text-teal-400 shadow-sm shadow-teal-500/10"
-              : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
-          }`}
-        >
-          {p.label}
-        </button>
-      ))}
+      {PRESETS.map((p) => {
+        const isFlipPreset = p.key === "best_flips";
+        return (
+          <button
+            key={p.key}
+            onClick={() => onChange(p.key)}
+            className={`whitespace-nowrap rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+              selected === p.key
+                ? isFlipPreset
+                  ? "bg-amber-500/20 text-amber-400 shadow-sm shadow-amber-500/10"
+                  : "bg-teal-500/20 text-teal-400 shadow-sm shadow-teal-500/10"
+                : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+            }`}
+          >
+            {p.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
