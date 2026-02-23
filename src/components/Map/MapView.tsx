@@ -4,11 +4,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapGL, { Source, Layer } from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent, LayerProps } from "react-map-gl/mapbox";
 import type { FeatureCollection, Feature, Geometry } from "geojson";
-import type { PropertyWithMetrics, CommunityStats } from "@/lib/types";
+import type { PropertyWithMetrics, SaleRecord, CommunityStats } from "@/lib/types";
 
 import MetricSelector from "./MetricSelector";
 import PropertyTooltip from "./PropertyTooltip";
 import CommunityStatsBar from "./CommunityStatsBar";
+import PropertyDetailPanel from "@/components/PropertyCard/PropertyDetailPanel";
 import {
   type MetricKey,
   computePropertyMetrics,
@@ -27,6 +28,11 @@ interface HoveredProperty {
   y: number;
 }
 
+interface SelectedPropertyData {
+  property: PropertyWithMetrics;
+  saleHistory: SaleRecord[];
+}
+
 export default function MapView() {
   const mapRef = useRef<MapRef>(null);
 
@@ -37,6 +43,11 @@ export default function MapView() {
   const [mapStyle, setMapStyle] = useState(STYLE_DARK);
   const [hovered, setHovered] = useState<HoveredProperty | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  // Property detail panel state
+  const [selectedPcn, setSelectedPcn] = useState<string | null>(null);
+  const [selectedData, setSelectedData] = useState<SelectedPropertyData | null>(null);
+  const [isPanelLoading, setIsPanelLoading] = useState(false);
 
   // Fetch all data on mount
   useEffect(() => {
@@ -63,6 +74,45 @@ export default function MapView() {
     }
     fetchData();
   }, []);
+
+  // Fetch detail data when a parcel is selected
+  useEffect(() => {
+    if (!selectedPcn) {
+      setSelectedData(null);
+      return;
+    }
+
+    let cancelled = false;
+    setIsPanelLoading(true);
+
+    async function fetchDetail() {
+      try {
+        const res = await fetch(`/api/properties/${encodeURIComponent(selectedPcn!)}`);
+        if (!res.ok) {
+          console.error("Failed to fetch property detail:", res.status);
+          setSelectedPcn(null);
+          return;
+        }
+        const data = await res.json();
+        if (!cancelled) {
+          setSelectedData({
+            property: data.property as PropertyWithMetrics,
+            saleHistory: (data.saleHistory ?? []) as SaleRecord[],
+          });
+        }
+      } catch (err) {
+        console.error("Failed to fetch property detail:", err);
+        if (!cancelled) setSelectedPcn(null);
+      } finally {
+        if (!cancelled) setIsPanelLoading(false);
+      }
+    }
+    fetchDetail();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [selectedPcn]);
 
   // Build a lookup from pcn -> property for hover tooltips
   const propertyMap = useMemo(() => {
@@ -205,6 +255,22 @@ export default function MapView() {
     []
   );
 
+  // Selected parcel highlight layer (thicker, different color)
+  const selectedLayer = useMemo(
+    (): LayerProps =>
+      ({
+        id: "parcels-selected",
+        type: "line",
+        paint: {
+          "line-color": "#f59e0b",
+          "line-width": 3.5,
+          "line-opacity": 1,
+        },
+        filter: ["==", ["get", "pcn"], selectedPcn ?? ""],
+      }) as LayerProps,
+    [selectedPcn]
+  );
+
   // Handle mouse move on parcels
   const onMouseMove = useCallback(
     (e: MapMouseEvent) => {
@@ -247,6 +313,30 @@ export default function MapView() {
     }
   }, []);
 
+  // Handle click on parcels to open detail panel
+  const onClick = useCallback(
+    (e: MapMouseEvent) => {
+      if (!e.features || e.features.length === 0) return;
+
+      const feature = e.features[0];
+      const pcn = feature.properties?.pcn as string;
+      if (!pcn) return;
+
+      // Toggle: click same parcel closes panel
+      if (pcn === selectedPcn) {
+        setSelectedPcn(null);
+      } else {
+        setSelectedPcn(pcn);
+      }
+    },
+    [selectedPcn]
+  );
+
+  // Close detail panel
+  const handleClosePanel = useCallback(() => {
+    setSelectedPcn(null);
+  }, []);
+
   // Toggle satellite/dark
   const toggleStyle = useCallback(() => {
     setMapStyle((s) => (s === STYLE_DARK ? STYLE_SATELLITE : STYLE_DARK));
@@ -279,6 +369,7 @@ export default function MapView() {
         interactiveLayerIds={["parcels-fill"]}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
+        onClick={onClick}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
@@ -287,11 +378,12 @@ export default function MapView() {
             <Layer {...fillLayer} />
             <Layer {...outlineLayer} />
             <Layer {...highlightLayer} />
+            <Layer {...selectedLayer} />
           </Source>
         )}
       </MapGL>
 
-      {hovered && (
+      {hovered && !selectedPcn && (
         <PropertyTooltip
           property={hovered.property}
           metricValue={hovered.metricValue}
@@ -331,6 +423,24 @@ export default function MapView() {
           <span className="text-[10px] text-slate-400">High</span>
         </div>
       </div>
+
+      {/* Property detail panel */}
+      {selectedPcn && isPanelLoading && (
+        <div className="absolute right-0 top-0 z-30 flex h-full w-full max-w-[400px] items-center justify-center border-l border-white/10 bg-slate-800/95 shadow-[-4px_0_24px_rgba(0,0,0,0.4)] backdrop-blur-md animate-slide-in-right">
+          <div className="text-center">
+            <div className="mx-auto h-6 w-6 animate-spin rounded-full border-2 border-teal-400 border-t-transparent" />
+            <p className="mt-2 text-xs text-slate-400">Loading details...</p>
+          </div>
+        </div>
+      )}
+
+      {selectedPcn && selectedData && !isPanelLoading && (
+        <PropertyDetailPanel
+          property={selectedData.property}
+          saleHistory={selectedData.saleHistory}
+          onClose={handleClosePanel}
+        />
+      )}
     </div>
   );
 }

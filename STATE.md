@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-Interactive map view complete. Next: leaderboards page.
+Property detail side panel complete. Next: analytics charts.
 
 ## Status
 
@@ -18,7 +18,8 @@ Interactive map view complete. Next: leaderboards page.
 - [x] API routes (`src/app/api/` -- properties, stats, geojson, flips)
 - [x] Frontend scaffold: layout, navigation, dark theme
 - [x] Map view with parcel polygons
-- [ ] Leaderboards
+- [x] Leaderboards page with sortable table and 8 named presets
+- [x] Property detail side panel (click parcel -> slide-in panel with metrics, equity, sale history)
 - [ ] Analytics charts
 - [ ] Equity calculator
 - [ ] Docker deployment
@@ -30,7 +31,8 @@ Interactive map view complete. Next: leaderboards page.
 - 122 single-family homes confirmed in the subdivision (plus 20 common areas, 1 vacant)
 - Year built range is 1976-1982 (all original construction)
 - Sale history includes non-arm's-length transactions ($1, $10 sales) that skew return calculations. The flips query and avg_return_pct in stats are affected. Consider filtering sale_price > 1000 or similar threshold for meaningful analysis.
+- `db.ts` has a transient SQLite error on first request (WAL pragma on readonly DB). Recovers on retry. Pre-existing, not blocking.
 
 ## Next Steps
 
-Build the leaderboards page with sortable tables and ranking views.
+Build the analytics charts page with distribution plots and trend analysis.
