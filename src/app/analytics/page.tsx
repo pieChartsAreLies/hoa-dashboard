@@ -8,6 +8,11 @@ import AppreciationCurve from "@/components/Charts/AppreciationCurve";
 import PricePerSqftTrend from "@/components/Charts/PricePerSqftTrend";
 import HoldingPeriodScatter from "@/components/Charts/HoldingPeriodScatter";
 import BedroomAnalysis from "@/components/Charts/BedroomAnalysis";
+import EquityPanel, {
+  DEFAULT_EQUITY_SETTINGS,
+  type EquitySettings,
+} from "@/components/EquityCalculator/EquityPanel";
+import EquityDistribution from "@/components/Charts/EquityDistribution";
 
 interface ChartCardProps {
   title: string;
@@ -29,6 +34,9 @@ export default function AnalyticsPage() {
   const [properties, setProperties] = useState<PropertyWithMetrics[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [equitySettings, setEquitySettings] = useState<EquitySettings>(
+    DEFAULT_EQUITY_SETTINGS
+  );
 
   useEffect(() => {
     async function fetchData() {
@@ -125,7 +133,36 @@ export default function AnalyticsPage() {
           >
             <PricePerSqftTrend properties={properties} />
           </ChartCard>
+        </div>
 
+        {/* Equity Analysis Section */}
+        <div className="mt-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-white">Equity Analysis</h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Estimated equity distribution based on amortization assumptions.
+              Adjust settings to model different scenarios.
+            </p>
+          </div>
+          <div className="mb-4">
+            <EquityPanel
+              settings={equitySettings}
+              onChange={setEquitySettings}
+            />
+          </div>
+          <ChartCard
+            title="Equity Distribution"
+            description="Number of properties in each equity range, calculated from purchase price, time held, and current market value."
+          >
+            <EquityDistribution
+              properties={properties}
+              settings={equitySettings}
+            />
+          </ChartCard>
+        </div>
+
+        {/* Remaining Charts */}
+        <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
           {/* 5. Holding Period vs Return */}
           <ChartCard
             title="Holding Period vs. Return"
@@ -134,7 +171,7 @@ export default function AnalyticsPage() {
             <HoldingPeriodScatter properties={properties} />
           </ChartCard>
 
-          {/* 6. Bedroom Analysis (Placeholder) */}
+          {/* 6. Bedroom Analysis */}
           <ChartCard
             title="Bedroom Analysis"
             description="Average value, return, and price per sqft broken down by bedroom count."
