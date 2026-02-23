@@ -13,6 +13,7 @@ import EquityPanel, {
   type EquitySettings,
 } from "@/components/EquityCalculator/EquityPanel";
 import EquityDistribution from "@/components/Charts/EquityDistribution";
+import SOHAnalysis from "@/components/Charts/SOHAnalysis";
 
 interface ChartCardProps {
   title: string;
@@ -105,7 +106,7 @@ export default function AnalyticsPage() {
           {/* 1. Purchase Timing vs Return */}
           <ChartCard
             title="Purchase Timing vs. Return"
-            description="When each property was bought relative to total return. Dot size reflects living sqft."
+            description="When each property was bought relative to total return. Dots colored by prevailing mortgage rate at purchase."
           >
             <PurchaseTimingScatter properties={properties} />
           </ChartCard>
@@ -158,6 +159,27 @@ export default function AnalyticsPage() {
               properties={properties}
               settings={equitySettings}
             />
+          </ChartCard>
+        </div>
+
+        {/* Tax Efficiency: Save Our Homes Section */}
+        <div className="mt-8">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-white">
+              Tax Efficiency: Save Our Homes
+            </h2>
+            <p className="mt-1 text-xs text-slate-400">
+              Florida&apos;s Save Our Homes amendment caps annual assessed value
+              increases at 3% for homesteaded properties. This creates a growing
+              gap between assessed and market value for long-term holders,
+              resulting in significant tax savings.
+            </p>
+          </div>
+          <ChartCard
+            title="SOH Cap Analysis"
+            description="Assessed value vs. market value for homesteaded properties, ranked by the size of the SOH gap."
+          >
+            <SOHAnalysis properties={properties} />
           </ChartCard>
         </div>
 
