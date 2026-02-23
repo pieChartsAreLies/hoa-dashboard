@@ -8,7 +8,6 @@ let db: Database.Database | null = null;
 function getDb(): Database.Database {
   if (!db) {
     db = new Database(DB_PATH, { readonly: true });
-    db.pragma("journal_mode = WAL");
   }
   return db;
 }
