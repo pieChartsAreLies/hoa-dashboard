@@ -1,0 +1,10 @@
+services:
+  hoa-dashboard:
+    build: .
+    ports:
+      - "3100:3000"
+    volumes:
+      - ./data:/app/data:ro
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_MAPBOX_TOKEN=${NEXT_PUBLIC_MAPBOX_TOKEN}
