@@ -47,6 +47,12 @@ data/*.geojson
 data/*.json
 data/*.csv
 
+# Zillow artifacts (private scraping data)
+data/zillow_*.png
+data/zillow_debug.html
+scripts/zillow_*.js
+scripts/fetch_zestimates.py
+
 # Python
 scripts/__pycache__/
 scripts/*.pyc

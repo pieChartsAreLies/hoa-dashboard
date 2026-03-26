@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import MapGL, { Source, Layer } from "react-map-gl/mapbox";
 import type { MapRef, MapMouseEvent, LayerProps } from "react-map-gl/mapbox";
-import type { FeatureCollection, Feature, Geometry } from "geojson";
+import type { FeatureCollection, Feature, Geometry, Position } from "geojson";
 import type { PropertyWithMetrics, SaleRecord, CommunityStats } from "@/lib/types";
 
 import MetricSelector from "./MetricSelector";
@@ -17,6 +17,32 @@ import {
 } from "./metrics";
 
 const MAPBOX_TOKEN = process.env.NEXT_PUBLIC_MAPBOX_TOKEN ?? "";
+
+/** Compute bounding box [minLng, minLat, maxLng, maxLat] from a GeoJSON FeatureCollection */
+function computeBounds(fc: FeatureCollection): [number, number, number, number] | null {
+  let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
+  let found = false;
+
+  function visitCoord(coord: Position) {
+    found = true;
+    if (coord[0] < minLng) minLng = coord[0];
+    if (coord[1] < minLat) minLat = coord[1];
+    if (coord[0] > maxLng) maxLng = coord[0];
+    if (coord[1] > maxLat) maxLat = coord[1];
+  }
+
+  for (const feature of fc.features) {
+    const geom = feature.geometry;
+    if (!geom) continue;
+    if (geom.type === "Polygon") {
+      for (const ring of geom.coordinates) ring.forEach(visitCoord);
+    } else if (geom.type === "MultiPolygon") {
+      for (const poly of geom.coordinates) for (const ring of poly) ring.forEach(visitCoord);
+    }
+  }
+
+  return found ? [minLng, minLat, maxLng, maxLat] : null;
+}
 
 const STYLE_DARK = "mapbox://styles/mapbox/dark-v11";
 const STYLE_SATELLITE = "mapbox://styles/mapbox/satellite-streets-v12";
@@ -43,6 +69,7 @@ export default function MapView() {
   const [mapStyle, setMapStyle] = useState(STYLE_DARK);
   const [hovered, setHovered] = useState<HoveredProperty | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [mapLoaded, setMapLoaded] = useState(false);
 
   // Property detail panel state
   const [selectedPcn, setSelectedPcn] = useState<string | null>(null);
@@ -51,6 +78,10 @@ export default function MapView() {
 
   // Flip detection state
   const [flipPcns, setFlipPcns] = useState<Set<string>>(new Set());
+  const [showFlips, setShowFlips] = useState(true);
+
+  // Gradient exclusion state
+  const [excludedPcns, setExcludedPcns] = useState<Set<string>>(new Set());
 
   // Fetch all data on mount
   useEffect(() => {
@@ -161,17 +192,18 @@ export default function MapView() {
           estimated_equity: metrics?.estimated_equity ?? null,
           years_held: metrics?.years_held ?? null,
           is_flip: pcn ? (flipPcns.has(pcn) ? 1 : 0) : 0,
+          is_excluded: pcn ? (excludedPcns.has(pcn) ? 1 : 0) : 0,
         },
       };
     });
 
     return { type: "FeatureCollection" as const, features };
-  }, [geojson, metricMap, flipPcns]);
+  }, [geojson, metricMap, flipPcns, excludedPcns]);
 
-  // Compute domain for the currently selected metric
+  // Compute domain for the currently selected metric (excluding excluded parcels)
   const domain = useMemo(
-    () => getMetricDomain(metricMap, selectedMetric),
-    [metricMap, selectedMetric]
+    () => getMetricDomain(metricMap, selectedMetric, excludedPcns),
+    [metricMap, selectedMetric, excludedPcns]
   );
 
   // Determine color type for the selected metric
@@ -192,9 +224,11 @@ export default function MapView() {
     // For dollar metrics: light blue (low) -> dark blue (high)
     let fillColorExpr: unknown;
 
+    // Base color expression per metric type
+    let baseColorExpr: unknown;
     if (colorType === "return") {
       const mid = (lo + hi) / 2;
-      fillColorExpr = [
+      baseColorExpr = [
         "case",
         ["==", metricProp, null],
         "rgba(100,116,139,0.3)",
@@ -211,7 +245,7 @@ export default function MapView() {
         ],
       ];
     } else {
-      fillColorExpr = [
+      baseColorExpr = [
         "case",
         ["==", metricProp, null],
         "rgba(100,116,139,0.3)",
@@ -226,6 +260,14 @@ export default function MapView() {
         ],
       ];
     }
+
+    // Wrap with exclusion check: excluded parcels render gray
+    fillColorExpr = [
+      "case",
+      ["==", ["get", "is_excluded"], 1],
+      "rgba(100,116,139,0.4)",
+      baseColorExpr,
+    ];
 
     return {
       id: "parcels-fill",
@@ -284,7 +326,24 @@ export default function MapView() {
     [selectedPcn]
   );
 
-  // Flip indicator outline layer - amber ring on flip properties
+  // Flip indicator: amber fill overlay (semi-transparent wash)
+  const flipFillLayer = useMemo(
+    (): LayerProps =>
+      ({
+        id: "parcels-flip-fill",
+        type: "fill",
+        paint: {
+          "fill-color": "#f59e0b",
+          "fill-opacity": 0.25,
+        },
+        filter: showFlips
+          ? ["==", ["get", "is_flip"], 1]
+          : ["==", ["get", "is_flip"], -1], // impossible value = hidden
+      }) as LayerProps,
+    [showFlips]
+  );
+
+  // Flip indicator: solid amber border
   const flipOutlineLayer = useMemo(
     (): LayerProps =>
       ({
@@ -292,23 +351,35 @@ export default function MapView() {
         type: "line",
         paint: {
           "line-color": "#f59e0b",
-          "line-width": 2,
-          "line-opacity": 0.8,
-          "line-dasharray": [2, 2],
+          "line-width": 2.5,
+          "line-opacity": 0.9,
         },
-        filter: ["==", ["get", "is_flip"], 1],
+        filter: showFlips
+          ? ["==", ["get", "is_flip"], 1]
+          : ["==", ["get", "is_flip"], -1],
       }) as LayerProps,
-    []
+    [showFlips]
   );
+
+  // Safely set a layer filter only when the map style is loaded
+  const safeSetFilter = useCallback((layerId: string, filter: unknown[]) => {
+    const map = mapRef.current?.getMap();
+    if (map && map.isStyleLoaded() && map.getLayer(layerId)) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      map.setFilter(layerId, filter as any);
+    }
+  }, []);
 
   // Handle mouse move on parcels
   const onMouseMove = useCallback(
     (e: MapMouseEvent) => {
+      if (!mapLoaded) return;
+
       if (!e.features || e.features.length === 0) {
         setHovered(null);
         if (mapRef.current) {
           mapRef.current.getMap().getCanvas().style.cursor = "";
-          mapRef.current.getMap().setFilter("parcels-highlight", ["==", ["get", "pcn"], ""]);
+          safeSetFilter("parcels-highlight", ["==", ["get", "pcn"], ""]);
         }
         return;
       }
@@ -329,19 +400,19 @@ export default function MapView() {
 
       if (mapRef.current) {
         mapRef.current.getMap().getCanvas().style.cursor = "pointer";
-        mapRef.current.getMap().setFilter("parcels-highlight", ["==", ["get", "pcn"], pcn]);
+        safeSetFilter("parcels-highlight", ["==", ["get", "pcn"], pcn]);
       }
     },
-    [propertyMap, metricMap, selectedMetric]
+    [mapLoaded, propertyMap, metricMap, selectedMetric, safeSetFilter]
   );
 
   const onMouseLeave = useCallback(() => {
     setHovered(null);
     if (mapRef.current) {
       mapRef.current.getMap().getCanvas().style.cursor = "";
-      mapRef.current.getMap().setFilter("parcels-highlight", ["==", ["get", "pcn"], ""]);
+      safeSetFilter("parcels-highlight", ["==", ["get", "pcn"], ""]);
     }
-  }, []);
+  }, [safeSetFilter]);
 
   // Handle click on parcels to open detail panel
   const onClick = useCallback(
@@ -362,13 +433,54 @@ export default function MapView() {
     [selectedPcn]
   );
 
+  // Right-click to toggle exclusion from gradient
+  const onContextMenu = useCallback(
+    (e: MapMouseEvent) => {
+      e.preventDefault();
+      if (!e.features || e.features.length === 0) return;
+      const pcn = e.features[0].properties?.pcn as string;
+      if (!pcn) return;
+
+      setExcludedPcns((prev) => {
+        const next = new Set(prev);
+        if (next.has(pcn)) {
+          next.delete(pcn);
+        } else {
+          next.add(pcn);
+        }
+        return next;
+      });
+    },
+    []
+  );
+
+  // Clear all exclusions
+  const clearExclusions = useCallback(() => {
+    setExcludedPcns(new Set());
+  }, []);
+
   // Close detail panel
   const handleClosePanel = useCallback(() => {
     setSelectedPcn(null);
   }, []);
 
+  // Handle map style load -- fit bounds to neighborhood
+  const onMapLoad = useCallback(() => {
+    setMapLoaded(true);
+    if (geojson && mapRef.current) {
+      const bounds = computeBounds(geojson);
+      if (bounds) {
+        mapRef.current.fitBounds(
+          [[bounds[0], bounds[1]], [bounds[2], bounds[3]]],
+          { padding: 40, duration: 0 }
+        );
+      }
+    }
+  }, [geojson]);
+
   // Toggle satellite/dark
   const toggleStyle = useCallback(() => {
+    setMapLoaded(false);
     setMapStyle((s) => (s === STYLE_DARK ? STYLE_SATELLITE : STYLE_DARK));
   }, []);
 
@@ -397,19 +509,22 @@ export default function MapView() {
         }}
         mapStyle={mapStyle}
         interactiveLayerIds={["parcels-fill"]}
+        onLoad={onMapLoad}
         onMouseMove={onMouseMove}
         onMouseLeave={onMouseLeave}
         onClick={onClick}
+        onContextMenu={onContextMenu}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
       >
         {enrichedGeojson && (
           <Source id="parcels" type="geojson" data={enrichedGeojson}>
             <Layer {...fillLayer} />
+            <Layer {...flipFillLayer} />
             <Layer {...outlineLayer} />
+            <Layer {...flipOutlineLayer} />
             <Layer {...highlightLayer} />
             <Layer {...selectedLayer} />
-            <Layer {...flipOutlineLayer} />
           </Source>
         )}
       </MapGL>
@@ -454,9 +569,30 @@ export default function MapView() {
           <span className="text-[10px] text-slate-400">High</span>
         </div>
         {flipPcns.size > 0 && (
+          <button
+            onClick={() => setShowFlips((v) => !v)}
+            className="mt-1.5 flex items-center gap-1.5 transition-opacity"
+            style={{ opacity: showFlips ? 1 : 0.5 }}
+            title={showFlips ? "Click to hide flip indicators" : "Click to show flip indicators"}
+          >
+            <div className="h-2.5 w-4 rounded-sm border-2 border-amber-500 bg-amber-500/25" />
+            <span className="text-[10px] text-slate-400">
+              Likely Flip ({flipPcns.size})
+            </span>
+          </button>
+        )}
+        {excludedPcns.size > 0 && (
           <div className="mt-1.5 flex items-center gap-1.5">
-            <div className="h-2.5 w-4 rounded-sm border border-dashed border-amber-500" />
-            <span className="text-[10px] text-slate-400">Likely Flip</span>
+            <div className="h-2.5 w-4 rounded-sm bg-slate-500/40" />
+            <span className="text-[10px] text-slate-400">
+              Excluded ({excludedPcns.size})
+            </span>
+            <button
+              onClick={clearExclusions}
+              className="text-[10px] text-teal-400 hover:text-teal-300"
+            >
+              Clear
+            </button>
           </div>
         )}
       </div>

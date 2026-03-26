@@ -119,16 +119,28 @@ export function getPropertiesByBedrooms() {
 
 export function getFlips() {
   return getDb().prepare(`
-    SELECT sh1.pcn,
-      sh1.sale_price as buy_price, sh1.sale_date as buy_date,
-      sh2.sale_price as sell_price, sh2.sale_date as sell_date,
-      ROUND((sh2.sale_price - sh1.sale_price) * 100.0 / sh1.sale_price, 1) as flip_return_pct
-    FROM sale_history sh1
-    JOIN sale_history sh2 ON sh1.pcn = sh2.pcn
-      AND sh2.sale_date > sh1.sale_date
-      AND julianday(sh2.sale_date) - julianday(sh1.sale_date) <= 1095
-      AND sh1.sale_price > 1000
-      AND sh2.sale_price > sh1.sale_price * 1.3
+    WITH ranked AS (
+      SELECT pcn, sale_date, sale_price,
+        ROW_NUMBER() OVER (PARTITION BY pcn ORDER BY sale_date ASC) as rn
+      FROM sale_history
+      WHERE sale_price > 1000
+    ),
+    consecutive AS (
+      SELECT r1.pcn,
+        r1.sale_price as buy_price, r1.sale_date as buy_date,
+        r2.sale_price as sell_price, r2.sale_date as sell_date,
+        r2.rn as sell_rn,
+        MAX(r2.rn) OVER (PARTITION BY r1.pcn) as max_rn
+      FROM ranked r1
+      JOIN ranked r2 ON r1.pcn = r2.pcn AND r2.rn = r1.rn + 1
+    )
+    SELECT pcn, buy_price, buy_date, sell_price, sell_date,
+      ROUND((sell_price - buy_price) * 100.0 / buy_price, 1) as flip_return_pct
+    FROM consecutive
+    WHERE julianday(sell_date) - julianday(buy_date) <= 1095
+      AND sell_price > buy_price * 1.3
+      AND sell_rn = max_rn
+      AND sell_date >= date('now', '-20 years')
     ORDER BY flip_return_pct DESC
   `).all();
 }

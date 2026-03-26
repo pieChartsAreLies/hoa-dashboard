@@ -150,15 +150,21 @@ def process():
         lat, lng = compute_centroid(feat.get("geometry"))
         detail = details.get(pcn, {})
 
-        # Use the most recent sale from detail data as the "purchase" if available
+        # Use the most recent legitimate sale (>= $1,000) from detail data as the "purchase"
+        # This skips $10 non-arm's-length transfers (family transfers, etc.)
         # Otherwise fall back to ArcGIS SALE_DATE/PRICE
         sale_history = detail.get("sale_history", [])
+        purchase_date = None
+        purchase_price = None
         if sale_history:
-            # sale_history is ordered most recent first
-            most_recent = sale_history[0]
-            purchase_date = most_recent.get("date")
-            purchase_price = most_recent.get("price")
-        else:
+            # sale_history is ordered most recent first; pick first with price >= 1000
+            for sale in sale_history:
+                price = sale.get("price")
+                if price is not None and price >= 1000:
+                    purchase_date = sale.get("date")
+                    purchase_price = price
+                    break
+        if purchase_price is None:
             purchase_date = epoch_to_date(props.get("SALE_DATE") or props.get("Q_SALE_DATE"))
             purchase_price = parse_price(props.get("PRICE"))
 
@@ -173,8 +179,8 @@ def process():
             props.get("MKT_NOT_CAPPED"),
             props.get("LAND_MARKET"),
             props.get("IMPRV_MRKT"),
-            detail.get("bedrooms"),
-            detail.get("bathrooms"),
+            detail.get("bedrooms") or None,  # 0 = missing data from county
+            detail.get("bathrooms") or None,
             detail.get("living_sqft"),
             detail.get("lot_sqft"),
             detail.get("year_built"),

@@ -117,14 +117,17 @@ export function computePropertyMetrics(
 
 /**
  * Get the min and max of a metric across all properties, ignoring nulls.
+ * Optionally exclude specific PCNs from the domain calculation.
  */
 export function getMetricDomain(
   metricMap: Map<string, Record<MetricKey, number | null>>,
-  key: MetricKey
+  key: MetricKey,
+  excludedPcns?: Set<string>
 ): [number, number] {
   let min = Infinity;
   let max = -Infinity;
-  for (const metrics of metricMap.values()) {
+  for (const [pcn, metrics] of metricMap.entries()) {
+    if (excludedPcns && excludedPcns.size > 0 && excludedPcns.has(pcn)) continue;
     const v = metrics[key];
     if (v !== null && v !== undefined && isFinite(v)) {
       if (v < min) min = v;

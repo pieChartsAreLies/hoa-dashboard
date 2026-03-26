@@ -2,7 +2,7 @@
 
 ## Current Focus
 
-Phase 1 implementation complete. Ready for deployment and browser testing.
+Post-browser-testing bug fixes and UX improvements applied. Ready for verification.
 
 ## Status
 
@@ -27,6 +27,10 @@ Phase 1 implementation complete. Ready for deployment and browser testing.
 - [x] Methodology page (data sources, formulas, disclaimers)
 - [x] Community selector UI (coming soon dropdown)
 - [x] Docker deployment config (Dockerfile, docker-compose.yml, standalone)
+- [x] Fix $10 non-arm's-length sales in data pipeline (skip sales < $1,000)
+- [x] Fix flip detection (consecutive sales only, most-recent pair, no false positives)
+- [x] Right-click exclusion from map gradient (gray out, recalculate domain, Clear button)
+- [x] Flip indicator: amber fill overlay + solid border, toggleable via legend click
 - [ ] Deploy to homelab (Loki) and configure paseos.michaelgerstl.com
 - [ ] Browser testing and visual QA
 
@@ -34,7 +38,7 @@ Phase 1 implementation complete. Ready for deployment and browser testing.
 
 - Bedrooms/bathrooms NULL for all properties (PAPA requires browser rendering)
 - MKT_NOT_CAPPED NULL (SOH uses market_value vs assessed_value gap instead)
-- Non-arm's-length transactions filtered at $1,000 threshold
+- 1 property (20921 Ramita Trl) has only a $100 sale from 1978; no legitimate sale exists in data
 - Docker build not tested locally (needs Loki)
 
 ## Data Summary

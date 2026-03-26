@@ -170,7 +170,7 @@ export default function PropertyDetailPanel({
             </h2>
             {isFlip && <FlipBadge />}
           </div>
-          <p className="mt-0.5 truncate text-sm text-slate-400">
+          <p className="mt-0.5 line-clamp-2 text-sm text-slate-400">
             {property.owner_name}
           </p>
         </div>
