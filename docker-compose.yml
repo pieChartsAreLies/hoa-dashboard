@@ -1,6 +1,9 @@
 services:
   hoa-dashboard:
-    build: .
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_MAPBOX_TOKEN: ${NEXT_PUBLIC_MAPBOX_TOKEN}
     ports:
       - "3100:3000"
     volumes:
