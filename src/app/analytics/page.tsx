@@ -113,8 +113,8 @@ export default function AnalyticsPage() {
 
           {/* 2. Market Value Distribution */}
           <ChartCard
-            title="Market Value Distribution"
-            description="How current assessed market values are distributed across the community."
+            title="Est. Market Value Distribution"
+            description="How estimated market values (Zillow, falling back to county) are distributed across the community."
           >
             <ValueDistribution properties={properties} />
           </ChartCard>
@@ -153,7 +153,7 @@ export default function AnalyticsPage() {
           </div>
           <ChartCard
             title="Equity Distribution"
-            description="Number of properties in each equity range, calculated from purchase price, time held, and current market value."
+            description="Number of properties in each equity range, calculated from purchase price, time held, and estimated market value."
           >
             <EquityDistribution
               properties={properties}
@@ -177,7 +177,7 @@ export default function AnalyticsPage() {
           </div>
           <ChartCard
             title="SOH Cap Analysis"
-            description="Assessed value vs. market value for homesteaded properties, ranked by the size of the SOH gap."
+            description="County assessed value vs. county market value for homesteaded properties, ranked by the size of the SOH gap."
           >
             <SOHAnalysis properties={properties} />
           </ChartCard>
@@ -198,7 +198,7 @@ export default function AnalyticsPage() {
             title="Bedroom Analysis"
             description="Average value, return, and price per sqft broken down by bedroom count."
           >
-            <BedroomAnalysis />
+            <BedroomAnalysis properties={properties} />
           </ChartCard>
         </div>
       </div>

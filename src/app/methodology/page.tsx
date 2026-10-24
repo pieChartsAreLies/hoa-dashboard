@@ -44,6 +44,37 @@ export default function MethodologyPage() {
               </ul>
             </Subsection>
 
+            <Subsection title="Zillow Zestimates">
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  Estimated market value for each home, read from the Zillow map
+                  view and matched to parcels by location
+                </li>
+                <li>
+                  Map labels are rounded (for example $1.08M), so values are
+                  accurate to roughly $10K above $1M and $1K below
+                </li>
+                <li>
+                  This is the &quot;Est. Market Value&quot; used for returns,
+                  equity, and totals; homes without one fall back to the county
+                  market value
+                </li>
+              </ul>
+            </Subsection>
+
+            <Subsection title="Redfin">
+              <ul className="mt-2 list-disc space-y-1 pl-5">
+                <li>
+                  Bedrooms and bathrooms (the county does not publish them);
+                  bedrooms are missing for homes with no MLS listing history
+                </li>
+                <li>
+                  Redfin Estimate, shown alongside Zillow and county values as a
+                  cross-check
+                </li>
+              </ul>
+            </Subsection>
+
             <Subsection title="Freddie Mac Primary Mortgage Market Survey (PMMS) via FRED">
               <p>
                 URL:{" "}
@@ -118,7 +149,7 @@ export default function MethodologyPage() {
                 balance
               </li>
               <li>
-                Estimated Equity = Current Market Value - Remaining Principal
+                Estimated Equity = Est. Market Value - Remaining Principal
               </li>
               <li>
                 These are estimates only; actual loan terms, refinancing, and
@@ -175,6 +206,12 @@ export default function MethodologyPage() {
               <li>
                 Assessed values are not actual sale prices and may not reflect
                 current market conditions
+              </li>
+              <li>
+                Zillow and Redfin estimates are automated models, not
+                appraisals; they can be stale for individual homes (one home
+                showed a Zestimate equal to its tax value after a $1.085M sale,
+                and uses the Redfin estimate instead)
               </li>
               <li>
                 Equity calculations use assumed loan terms; actual financing is

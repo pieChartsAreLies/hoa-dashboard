@@ -1,27 +1,109 @@
 "use client";
 
-export default function BedroomAnalysis() {
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LabelList,
+} from "recharts";
+import type { PropertyWithMetrics } from "@/lib/types";
+import { formatCurrency } from "@/lib/metrics";
+
+interface Props {
+  properties: PropertyWithMetrics[];
+}
+
+interface BedroomData {
+  label: string;
+  count: number;
+  avgValue: number;
+  avgPricePerSqft: number | null;
+  avgReturnPct: number | null;
+}
+
+function avg(values: number[]): number | null {
+  return values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+}
+
+function buildGroups(properties: PropertyWithMetrics[]): BedroomData[] {
+  const groups = new Map<number, PropertyWithMetrics[]>();
+  for (const p of properties) {
+    if (p.bedrooms === null || !p.current_value) continue;
+    const list = groups.get(p.bedrooms) ?? [];
+    list.push(p);
+    groups.set(p.bedrooms, list);
+  }
+
+  return [...groups.entries()]
+    .sort(([a], [b]) => a - b)
+    .map(([beds, list]) => ({
+      label: `${beds} bd`,
+      count: list.length,
+      avgValue: avg(list.map((p) => p.current_value!)) ?? 0,
+      avgPricePerSqft: avg(
+        list.filter((p) => p.price_per_sqft_current !== null).map((p) => p.price_per_sqft_current!)
+      ),
+      avgReturnPct: avg(
+        list.filter((p) => p.total_return_pct !== null).map((p) => p.total_return_pct!)
+      ),
+    }));
+}
+
+export default function BedroomAnalysis({ properties }: Props) {
+  const data = buildGroups(properties);
+  const known = data.reduce((n, d) => n + d.count, 0);
+
   return (
-    <div className="flex h-[340px] flex-col items-center justify-center text-center">
-      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-700">
-        <svg
-          className="h-6 w-6 text-slate-400"
-          fill="none"
-          viewBox="0 0 24 24"
-          strokeWidth={1.5}
-          stroke="currentColor"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            d="M3.75 21h16.5M4.5 3h15M5.25 3v18m13.5-18v18M9 6.75h1.5m-1.5 3h1.5m-1.5 3h1.5m3-6H15m-1.5 3H15m-1.5 3H15M9 21v-3.375c0-.621.504-1.125 1.125-1.125h3.75c.621 0 1.125.504 1.125 1.125V21"
+    <div>
+      <ResponsiveContainer width="100%" height={320}>
+        <BarChart data={data} margin={{ top: 24, right: 20, bottom: 10, left: 10 }}>
+          <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
+          <XAxis dataKey="label" tick={{ fill: "#94a3b8", fontSize: 12 }} stroke="#475569" />
+          <YAxis
+            tick={{ fill: "#94a3b8", fontSize: 12 }}
+            stroke="#475569"
+            tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`}
           />
-        </svg>
-      </div>
-      <p className="text-sm font-medium text-slate-300">
-        Bedroom data is being collected.
+          <Tooltip
+            cursor={{ fill: "rgba(20, 184, 166, 0.1)" }}
+            content={({ active, payload }) => {
+              if (!active || !payload?.length) return null;
+              const d = payload[0].payload as BedroomData;
+              return (
+                <div className="rounded-lg border border-slate-600 bg-slate-800 px-3 py-2 text-xs shadow-lg">
+                  <p className="font-semibold text-white">
+                    {d.label} ({d.count} {d.count === 1 ? "home" : "homes"})
+                  </p>
+                  <p className="text-teal-400">Avg est. value: {formatCurrency(d.avgValue)}</p>
+                  {d.avgPricePerSqft !== null && (
+                    <p className="text-slate-300">Avg $/sqft: ${d.avgPricePerSqft.toFixed(0)}</p>
+                  )}
+                  {d.avgReturnPct !== null && (
+                    <p className="text-slate-300">Avg return: {d.avgReturnPct.toFixed(0)}%</p>
+                  )}
+                </div>
+              );
+            }}
+          />
+          <Bar dataKey="avgValue" fill="#14b8a6" radius={[4, 4, 0, 0]}>
+            <LabelList
+              dataKey="count"
+              position="top"
+              fill="#94a3b8"
+              fontSize={11}
+              formatter={(v) => `n=${v}`}
+            />
+          </Bar>
+        </BarChart>
+      </ResponsiveContainer>
+      <p className="mt-1 text-[11px] text-slate-500">
+        Bedroom counts from Redfin for {known} of {properties.length} homes; the rest have no
+        public listing record.
       </p>
-      <p className="mt-1 text-xs text-slate-500">Check back soon.</p>
     </div>
   );
 }

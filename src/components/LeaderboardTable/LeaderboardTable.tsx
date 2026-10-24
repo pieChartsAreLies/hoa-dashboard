@@ -7,7 +7,7 @@ export interface LeaderboardRow {
   pcn: string;
   address: string;
   purchase_price: number | null;
-  market_value: number | null;
+  current_value: number | null;
   total_return_pct: number | null;
   annualized_return_pct: number | null;
   total_gain_dollars: number | null;
@@ -56,11 +56,11 @@ const COLUMNS: ColumnDef[] = [
     sortValue: (r) => r.purchase_price,
   },
   {
-    key: "market_value",
+    key: "current_value",
     label: "Current Value",
     align: "right",
-    format: (r) => formatCurrency(r.market_value),
-    sortValue: (r) => r.market_value,
+    format: (r) => formatCurrency(r.current_value),
+    sortValue: (r) => r.current_value,
   },
   {
     key: "total_return_pct",

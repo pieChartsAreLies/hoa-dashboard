@@ -19,6 +19,11 @@ export interface Property {
   longitude: number | null;
   property_use: string;
   acres: number | null;
+  zestimate: number | null;
+  zestimate_date: string | null;
+  redfin_estimate: number | null;
+  current_value: number | null; // zestimate, falling back to county market_value
+  value_source: string | null;
 }
 
 export interface PropertyWithMetrics extends Property {

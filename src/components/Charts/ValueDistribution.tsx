@@ -23,8 +23,8 @@ interface BinData {
 
 function buildHistogram(properties: PropertyWithMetrics[]): BinData[] {
   const values = properties
-    .filter((p) => p.market_value !== null && p.market_value > 0)
-    .map((p) => p.market_value!);
+    .filter((p) => p.current_value !== null && p.current_value > 0)
+    .map((p) => p.current_value!);
 
   if (values.length === 0) return [];
 
