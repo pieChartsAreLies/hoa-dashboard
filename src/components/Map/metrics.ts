@@ -68,13 +68,13 @@ export function computePropertyMetrics(
     if (
       p.purchase_price &&
       p.purchase_price > 1000 &&
-      p.market_value &&
-      p.market_value > 0 &&
+      p.current_value &&
+      p.current_value > 0 &&
       p.years_held &&
       p.years_held > 0
     ) {
       annualized =
-        (Math.pow(p.market_value / p.purchase_price, 1 / p.years_held) - 1) * 100;
+        (Math.pow(p.current_value / p.purchase_price, 1 / p.years_held) - 1) * 100;
     }
 
     // Estimated equity: client-side via amortization
@@ -82,8 +82,8 @@ export function computePropertyMetrics(
     if (
       p.purchase_price &&
       p.purchase_price > 1000 &&
-      p.market_value &&
-      p.market_value > 0 &&
+      p.current_value &&
+      p.current_value > 0 &&
       p.purchase_date &&
       p.rate_at_purchase
     ) {
@@ -95,7 +95,7 @@ export function computePropertyMetrics(
           annualRate: p.rate_at_purchase,
           termYears: 30,
           monthsElapsed: months,
-          currentMarketValue: p.market_value,
+          currentMarketValue: p.current_value,
         });
         equity = result.estimatedEquity;
       }

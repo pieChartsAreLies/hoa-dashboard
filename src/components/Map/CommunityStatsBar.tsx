@@ -12,7 +12,7 @@ export default function CommunityStatsBar({ stats }: CommunityStatsBarProps) {
 
   const items = [
     { label: "Properties", value: formatNumber(stats.total_properties) },
-    { label: "Avg Market Value", value: formatCurrency(stats.avg_market_value) },
+    { label: "Avg Est. Value", value: formatCurrency(stats.avg_market_value) },
     { label: "Avg Return", value: formatPct(stats.avg_return_pct) },
     { label: "Avg $/sqft", value: `$${formatNumber(stats.avg_price_per_sqft)}` },
     {

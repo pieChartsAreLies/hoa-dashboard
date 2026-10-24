@@ -52,9 +52,15 @@ export default function PropertyTooltip({
             </span>
           </div>
           <div className="flex justify-between text-xs">
-            <span className="text-slate-400">Market Value</span>
+            <span className="text-slate-400">Est. Market Value</span>
             <span className="text-slate-200">
-              {formatCurrency(property.market_value)}
+              {formatCurrency(property.current_value)}
+            </span>
+          </div>
+          <div className="flex justify-between text-xs">
+            <span className="text-slate-400">Beds / Baths</span>
+            <span className="text-slate-200">
+              {property.bedrooms ?? "?"} bd / {property.bathrooms ?? "?"} ba
             </span>
           </div>
           <div className="flex justify-between text-xs">

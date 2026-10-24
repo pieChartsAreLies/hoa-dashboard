@@ -75,15 +75,15 @@ export default function LeaderboardsPage() {
       const hasMetrics =
         p.purchase_price !== null &&
         p.purchase_price > 1000 &&
-        p.market_value !== null &&
-        p.market_value > 0;
+        p.current_value !== null &&
+        p.current_value > 0;
 
       // Annualized return
       let annReturn: number | null = null;
       if (hasMetrics && p.years_held && p.years_held > 0) {
         annReturn = annualizedReturn(
           p.purchase_price as number,
-          p.market_value as number,
+          p.current_value as number,
           p.years_held
         );
       }
@@ -94,7 +94,7 @@ export default function LeaderboardsPage() {
       if (
         hasMetrics &&
         p.purchase_date &&
-        p.market_value
+        p.current_value
       ) {
         const months = monthsElapsed(p.purchase_date);
         if (months > 0) {
@@ -105,7 +105,7 @@ export default function LeaderboardsPage() {
             annualRate: rate,
             termYears: 30,
             monthsElapsed: months,
-            currentMarketValue: p.market_value,
+            currentMarketValue: p.current_value,
           });
           equity = result.estimatedEquity;
           leverageReturn = result.leverageReturn;
@@ -116,7 +116,7 @@ export default function LeaderboardsPage() {
         pcn: p.pcn,
         address: p.address,
         purchase_price: p.purchase_price,
-        market_value: p.market_value,
+        current_value: p.current_value,
         total_return_pct: p.total_return_pct,
         annualized_return_pct: annReturn,
         total_gain_dollars: p.total_gain_dollars,

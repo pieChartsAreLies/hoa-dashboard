@@ -35,7 +35,12 @@ def create_schema(conn):
             latitude REAL,
             longitude REAL,
             property_use TEXT,
-            acres REAL
+            acres REAL,
+            zestimate REAL,
+            zestimate_date TEXT,
+            redfin_estimate REAL,
+            current_value REAL,
+            value_source TEXT
         );
 
         CREATE TABLE sale_history (
@@ -50,6 +55,59 @@ def create_schema(conn):
             year_month TEXT PRIMARY KEY,
             rate_30yr REAL
         );
+    """)
+
+
+def latest_csv(pattern):
+    """Return the newest dated CSV matching pattern (e.g. zestimates_YYYY-MM-DD.csv)."""
+    matches = sorted(DATA_DIR.glob(pattern))
+    return matches[-1] if matches else None
+
+
+def load_market_estimates(conn):
+    """Merge Zillow and Redfin snapshots into properties.
+
+    current_value is the Zillow estimate (or a manual override recorded in the
+    zestimates CSV), falling back to the county market value when absent.
+    Redfin supplies bedrooms/bathrooms, which the county does not publish.
+    """
+    zpath = latest_csv("zestimates_*.csv")
+    if zpath:
+        with open(zpath) as f:
+            rows = list(csv.DictReader(f))
+        for r in rows:
+            if not r.get("zestimate"):
+                continue
+            conn.execute(
+                "UPDATE properties SET zestimate = ?, zestimate_date = ?, value_source = ? WHERE pcn = ?",
+                (float(r["zestimate"]), r.get("as_of"), r.get("source") or "zillow", r["pcn"]),
+            )
+        print(f"Loaded {len(rows)} Zillow estimates from {zpath.name}")
+
+    rpath = latest_csv("redfin_*.csv")
+    if rpath:
+        with open(rpath) as f:
+            rows = list(csv.DictReader(f))
+        for r in rows:
+            conn.execute(
+                """UPDATE properties SET
+                    bedrooms = COALESCE(?, bedrooms),
+                    bathrooms = COALESCE(?, bathrooms),
+                    redfin_estimate = ?
+                WHERE pcn = ?""",
+                (
+                    int(r["beds"]) if r.get("beds") else None,
+                    float(r["baths_total"]) if r.get("baths_total") else None,
+                    float(r["redfin_estimate"]) if r.get("redfin_estimate") else None,
+                    r["pcn"],
+                ),
+            )
+        print(f"Loaded {len(rows)} Redfin records from {rpath.name}")
+
+    conn.execute("""
+        UPDATE properties SET
+            current_value = COALESCE(zestimate, market_value),
+            value_source = CASE WHEN zestimate IS NULL THEN 'county' ELSE value_source END
     """)
 
 
@@ -217,6 +275,7 @@ def process():
         """, sale_rows)
         print(f"Inserted {len(sale_rows)} sale history records")
 
+    load_market_estimates(conn)
     conn.commit()
 
     # Summary stats
@@ -239,6 +298,14 @@ def process():
     cur2 = conn.execute("SELECT SUM(homestead), COUNT(*) FROM properties")
     hmstd, total = cur2.fetchone()
     print(f"  Homesteaded: {hmstd}/{total}")
+
+    cur3 = conn.execute("""
+        SELECT SUM(current_value), SUM(market_value), COUNT(zestimate), COUNT(bedrooms), COUNT(bathrooms)
+        FROM properties
+    """)
+    est_total, county_total, n_zest, n_beds, n_baths = cur3.fetchone()
+    print(f"  Estimated value: ${est_total or 0:,.0f} (county ${county_total or 0:,.0f}); "
+          f"{n_zest} Zillow, {n_beds} beds, {n_baths} baths")
 
     conn.close()
     print(f"\nDatabase saved to {DB_PATH}")

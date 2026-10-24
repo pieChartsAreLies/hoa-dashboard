@@ -45,7 +45,7 @@ export default function SellScenarioPanel({ property }: SellScenarioPanelProps) 
   const [commissionPct, setCommissionPct] = useState(6);
 
   const scenario = useMemo(() => {
-    const salePrice = property.market_value;
+    const salePrice = property.current_value;
     if (!salePrice || salePrice <= 0) return null;
 
     const commission = salePrice * (commissionPct / 100);
@@ -169,7 +169,7 @@ export default function SellScenarioPanel({ property }: SellScenarioPanelProps) 
 
       {/* Fine print */}
       <p className="mt-3 text-[10px] leading-relaxed text-slate-500">
-        Estimate only. Uses PAPA assessed market value, assumed 20% down / 30yr
+        Estimate only. Uses the estimated market value (Zillow, falling back to county), assumed 20% down / 30yr
         fixed mortgage, and FL documentary stamp rate of $0.70 per $100. Does
         not include title insurance, prorated taxes, HOA dues, or other closing
         costs.

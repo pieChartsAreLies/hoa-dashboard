@@ -22,6 +22,12 @@ interface PropertyDetailPanelProps {
 /*  Helpers                                                           */
 /* ------------------------------------------------------------------ */
 
+function valueSourceLabel(source: string | null): string {
+  if (!source || source === "county") return "County market value";
+  if (source.startsWith("redfin")) return "Redfin estimate";
+  return "Zillow estimate";
+}
+
 function computeAnnualizedReturn(
   purchasePrice: number | null,
   marketValue: number | null,
@@ -43,8 +49,8 @@ function computeEquity(property: PropertyWithMetrics): EquityResult | null {
   if (
     !property.purchase_price ||
     property.purchase_price <= 1000 ||
-    !property.market_value ||
-    property.market_value <= 0 ||
+    !property.current_value ||
+    property.current_value <= 0 ||
     !property.purchase_date ||
     !property.rate_at_purchase
   )
@@ -59,7 +65,7 @@ function computeEquity(property: PropertyWithMetrics): EquityResult | null {
     annualRate: property.rate_at_purchase,
     termYears: 30,
     monthsElapsed: months,
-    currentMarketValue: property.market_value,
+    currentMarketValue: property.current_value,
   });
 }
 
@@ -150,7 +156,7 @@ export default function PropertyDetailPanel({
   const isPositiveGain = gain !== null && gain >= 0;
   const annualized = computeAnnualizedReturn(
     property.purchase_price,
-    property.market_value,
+    property.current_value,
     property.years_held
   );
   const equity = computeEquity(property);
@@ -215,11 +221,28 @@ export default function PropertyDetailPanel({
             </div>
             <div className="rounded-lg bg-slate-700/50 px-3 py-2.5">
               <p className="text-[10px] font-medium uppercase tracking-wider text-slate-400">
-                Market Value
+                Est. Market Value
               </p>
               <p className="mt-0.5 text-base font-bold text-white">
-                {formatCurrency(property.market_value)}
+                {formatCurrency(property.current_value)}
               </p>
+              <p className="mt-0.5 text-[11px] text-slate-500">
+                {valueSourceLabel(property.value_source)}
+              </p>
+            </div>
+          </div>
+          <div className="mt-2 grid grid-cols-2 gap-3 text-[11px]">
+            <div className="flex justify-between rounded-md bg-slate-700/30 px-3 py-1.5">
+              <span className="text-slate-400">Redfin</span>
+              <span className="font-medium text-slate-200">
+                {formatCurrency(property.redfin_estimate)}
+              </span>
+            </div>
+            <div className="flex justify-between rounded-md bg-slate-700/30 px-3 py-1.5">
+              <span className="text-slate-400">County</span>
+              <span className="font-medium text-slate-200">
+                {formatCurrency(property.market_value)}
+              </span>
             </div>
           </div>
           {gain !== null && (
@@ -383,6 +406,14 @@ export default function PropertyDetailPanel({
         <div>
           <SectionHeading>Property Details</SectionHeading>
           <div className="grid grid-cols-2 gap-2">
+            <MetricCell
+              label="Beds"
+              value={property.bedrooms?.toString() ?? "N/A"}
+            />
+            <MetricCell
+              label="Baths"
+              value={property.bathrooms?.toString() ?? "N/A"}
+            />
             <MetricCell
               label="Living Sqft"
               value={formatNumber(property.living_sqft)}

@@ -39,8 +39,8 @@ function computeEquityValues(
         p.purchase_price !== null &&
         p.purchase_price > 1000 &&
         p.purchase_date !== null &&
-        p.market_value !== null &&
-        p.market_value > 0
+        p.current_value !== null &&
+        p.current_value > 0
     )
     .map((p) => {
       const rate =
@@ -54,7 +54,7 @@ function computeEquityValues(
         annualRate: rate,
         termYears: settings.termYears,
         monthsElapsed: monthsElapsed(p.purchase_date!),
-        currentMarketValue: p.market_value!,
+        currentMarketValue: p.current_value!,
       });
 
       return result.estimatedEquity;

@@ -178,7 +178,7 @@ export default function CommunityPage() {
       .map((p) => p.living_sqft)
       .filter((s): s is number => s !== null && s > 0);
     const values = properties
-      .map((p) => p.market_value)
+      .map((p) => p.current_value)
       .filter((v): v is number => v !== null && v > 0);
 
     return {
@@ -286,7 +286,7 @@ export default function CommunityPage() {
       .filter((y): y is number => y !== null && y > 0);
     const homesteadCount = properties.filter((p) => p.homestead === 1).length;
     const overMillion = properties.filter(
-      (p) => p.market_value !== null && p.market_value > 1000000
+      (p) => p.current_value !== null && p.current_value > 1000000
     ).length;
     const newestYear = years.length ? Math.max(...years) : null;
 
@@ -372,7 +372,7 @@ export default function CommunityPage() {
           />
           <HeroStat
             value={formatCurrency(stats.avg_market_value)}
-            label="Avg Market Value"
+            label="Avg Est. Value"
           />
           <HeroStat
             value={formatPct(stats.avg_return_pct)}
